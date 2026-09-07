@@ -170,6 +170,41 @@ export function createEnrollmentStatusHandler({ rows = [], onRequest } = {}) {
 }
 
 /**
+ * GET the enrollments list for My Learning (getMyEnrollments). Mirrors the
+ * postgrest-js params it sends: user_id=eq.X plus an optional progress_percent
+ * filter (lt.100 for In Progress / eq.100 for Completed) and
+ * order=last_accessed_at.desc. `rows` is read fresh on every request, so tests
+ * can pass a MUTABLE array and push/pop to simulate enrolling or finishing a
+ * course across requests (used by the integration test's cross-phase refresh).
+ * @param {object} [options]
+ * @param {Array}  [options.rows] enrollment rows to serve (default: [])
+ * @param {Function} [options.onRequest] receives parsed
+ *        { userId, progressFilter, orderFilter }
+ */
+export function createMyEnrollmentsHandler({ rows = [], onRequest } = {}) {
+  return http.get("*/rest/v1/enrollments", ({ request }) => {
+    const searchParams = new URL(request.url).searchParams;
+    const progressFilter = searchParams.get("progress_percent");
+    const info = {
+      userId: (searchParams.get("user_id") ?? "").replace(/^eq\./, ""),
+      progressFilter,
+      orderFilter: searchParams.get("order"),
+    };
+    if (onRequest) onRequest(info);
+
+    let result = rows;
+    if (progressFilter) {
+      const [op, raw] = progressFilter.split(".");
+      const value = Number(raw);
+      result = result.filter((row) =>
+        op === "lt" ? row.progress_percent < value : row.progress_percent === value
+      );
+    }
+    return HttpResponse.json(result);
+  });
+}
+
+/**
  * POST enrollments — the enroll-in-course mutation endpoint.
  * @param {object} [options]
  * @param {string} [options.mode] 'success' (default) | 'duplicate' (23505) |

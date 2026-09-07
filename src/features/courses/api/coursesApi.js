@@ -144,3 +144,44 @@ export async function enrollInCourse(courseId, userId) {
  *   CourseDetailsPage; RLS on enrollments should still enforce
  *   user_id = auth.uid() as a security boundary.
  */
+/**
+ * My Learning: every enrollment for the current user WITH the course info the
+ * CourseProgressCard displays, so no per-course round-trip is needed.
+ * @param {string} userId authenticated user's id (never null — the hook guards)
+ * @param {object} [options]
+ * @param {"all"|"in_progress"|"completed"} [options.statusFilter] 'all' (default)
+ *        fetches everything; 'in_progress' = progress_percent < 100;
+ *        'completed' = progress_percent === 100. Invalid values behave like 'all'.
+ */
+export async function getMyEnrollments(userId, { statusFilter } = {}) {
+  // Order by last_accessed_at (nearest-first), NOT enrolled_at, so My Learning
+  // surfaces "continue where I left off" first. last_accessed_at starts null
+  // for freshly-enrolled, never-opened courses (Phase 5 owns writing it) and
+  // nulls sort after populated values, which is the intended behavior.
+  let query = supabase
+    .from("enrollments")
+    .select(
+      `id, progress_percent, enrolled_at, last_accessed_at,
+       course:courses(id, title, thumbnail_url, instructor:profiles(name))`
+    )
+    .eq("user_id", userId)
+    .order("last_accessed_at", { ascending: false });
+
+  if (statusFilter === "in_progress") {
+    query = query.lt("progress_percent", 100);
+  } else if (statusFilter === "completed") {
+    query = query.eq("progress_percent", 100);
+  }
+
+  return query; // resolves to { data, error }
+}
+
+/**
+ * MY ENROLLMENTS EDGE CASES:
+ * - Rows come back as { id, progress_percent, enrolled_at, last_accessed_at,
+ *   course: { id, title, thumbnail_url, instructor: { name } } } from
+ *   PostgREST. The hook returns them untouched — if a display layer wants
+ *   camelCase fields, do that mapping there rather than in this query layer.
+ * - A user with zero enrollments gets `data: []` (an array, not an error) —
+ *   My Learning renders its EmptyState from that, it's not a failure state.
+ */

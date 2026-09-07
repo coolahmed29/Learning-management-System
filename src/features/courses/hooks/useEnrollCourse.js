@@ -32,6 +32,12 @@ export function useEnrollCourse() {
       queryClient.invalidateQueries({
         queryKey: ["enrollment", courseId, user.id],
       });
+      // Also invalidate the whole My Learning list family so a course enrolled
+      // from anywhere in the app shows up there without a manual refresh. This
+      // key OVERLAPS conceptually but is a DIFFERENT cache entry from the one
+      // above ("am I enrolled in this course" vs "list all my enrollments"), so
+      // it needs its own explicit invalidation.
+      queryClient.invalidateQueries({ queryKey: ["myEnrollments"] });
     },
   });
 }

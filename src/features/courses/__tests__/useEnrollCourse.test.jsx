@@ -54,10 +54,11 @@ describe("useEnrollCourse", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.isError).toBe(false);
-    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledTimes(2);
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["enrollment", "course-1", user.id],
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["myEnrollments"] });
   });
 
   it("treats a duplicate-enrollment (23505) as a soft success and still invalidates", async () => {
@@ -72,10 +73,11 @@ describe("useEnrollCourse", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.isError).toBe(false);
-    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledTimes(2);
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["enrollment", "course-1", user.id],
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["myEnrollments"] });
   });
 
   it("surfaces a friendly error on a generic failure and does NOT invalidate", async () => {
