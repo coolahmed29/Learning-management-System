@@ -20,4 +20,39 @@ export function useCourses({ page, limit, search, category, difficulty, sortBy }
     // old data stays visible while new data loads (better pagination UX).
     placeholderData: keepPreviousData,
   });
-}
+ }
+// /**
+//  * FILE: src/features/courses/hooks/useCourseDetails.js
+//  * PURPOSE: Fetches full course detail data for the Course Details page.
+//  *
+//  * SIGNATURE: export function useCourseDetails(courseId) -> useQuery result
+//  *
+//  * STEPS:
+//  *    1. useQuery({
+//  *         queryKey: ['course', courseId],
+//  *         queryFn: () => coursesApi.getCourseById(courseId).then(({data,error}) => {
+//  *            if (error) {
+//  *              if (error.code === 'PGRST116' /* no rows found, verify actual code */) {
+//  *                 throw new NotFoundError('Course not found');  // custom error class
+//  *                 // or simply throw new Error('NOT_FOUND') and check message —
+//  *                 // decide the pattern and use it consistently across the app
+//  *              }
+//  *              throw new Error('Failed to load course');
+//  *            }
+//  *            return data;
+//  *         }),
+//  *         enabled: !!courseId,   // don't fire if courseId is somehow undefined
+//  *         retry: (failureCount, error) => error.message !== 'NOT_FOUND' && failureCount < 1,
+//  *           // don't retry a genuine 404, DO allow one retry for real transient errors
+//  *       })
+//  *
+//  * EDGE CASES:
+//  *    - The NOT_FOUND vs generic-error distinction matters a lot for UX: page
+//  *      component needs to render a distinct "Course not found, browse other
+//  *      courses" state vs the standard ErrorState-with-retry — plan for this
+//  *      branch explicitly in CourseDetailsPage.
+//  *
+//  * TESTING NOTES: returns course data on success, throws/surfaces NOT_FOUND
+//  * distinctly from generic error on a missing course, does not retry on
+//  * NOT_FOUND, retries once on a genuine 500.
+//  */

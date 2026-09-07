@@ -10,6 +10,7 @@
  */
 import { http, HttpResponse } from "msw";
 import {
+  buildCourse,
   buildCourseCatalog,
   MOCK_CATEGORIES,
 } from "../factories";
@@ -122,4 +123,76 @@ export function createCategoriesHandler({ categories } = {}) {
   return http.get("*/rest/v1/categories", () =>
     HttpResponse.json(categories ?? MOCK_CATEGORIES)
   );
+}
+
+/**
+ * @param {object} [options]
+ * @param {object} [options.course] full course row (incl. nested instructor +
+ *        modules/lessons) to return for the matching id
+ * @param {string} [options.expectedId] id the handler expects ("course-1"); any
+ *        other requested id returns PostgREST's PGRST116 (single-row no-match)
+ * @param {Function} [options.onRequest] receives the requested course id
+ */
+export function createCourseDetailHandler({ course, expectedId, onRequest } = {}) {
+  const row = course ?? buildCourse(0);
+  return http.get("*/rest/v1/courses", ({ request }) => {
+    const raw = new URL(request.url).searchParams.get("id") ?? "";
+    const id = raw.replace(/^eq\./, "");
+    if (onRequest) onRequest(id);
+    if (expectedId && id !== expectedId) {
+      return HttpResponse.json(
+        { code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned", details: "The result contains 0 rows", hint: "" },
+        { status: 406 }
+      );
+    }
+    return HttpResponse.json(row);
+  });
+}
+
+/**
+ * GET enrollments for a user/course — mirrors getEnrollmentStatus's
+ * maybeSingle shape: a 200 with `[]` means "not enrolled" (data -> null).
+ * @param {object} [options]
+ * @param {Array}  [options.rows] enrollment rows to return
+ * @param {Function} [options.onRequest] receives parsed { courseId, userId }
+ */
+export function createEnrollmentStatusHandler({ rows = [], onRequest } = {}) {
+  return http.get("*/rest/v1/enrollments", ({ request }) => {
+    const searchParams = new URL(request.url).searchParams;
+    if (onRequest) {
+      onRequest({
+        courseId: (searchParams.get("course_id") ?? "").replace("eq.", ""),
+        userId: (searchParams.get("user_id") ?? "").replace("eq.", ""),
+      });
+    }
+    return HttpResponse.json(rows);
+  });
+}
+
+/**
+ * POST enrollments — the enroll-in-course mutation endpoint.
+ * @param {object} [options]
+ * @param {string} [options.mode] 'success' (default) | 'duplicate' (23505) |
+ *        'error' (500)
+ * @param {object} [options.row] the created row returned on success
+ * @param {Function} [options.onRequest] receives the posted body
+ */
+export function createEnrollCourseHandler({ mode = "success", row, onRequest } = {}) {
+  return http.post("*/rest/v1/enrollments", async ({ request }) => {
+    if (onRequest) onRequest(await request.json());
+    if (mode === "duplicate") {
+      return HttpResponse.json(
+        { code: "23505", message: "duplicate key value violates unique constraint", details: "Key (course_id, user_id) already exists.", hint: "" },
+        { status: 406 }
+      );
+    }
+    if (mode === "error") {
+      return HttpResponse.json({ message: "boom" }, { status: 500 });
+    }
+    return HttpResponse.json(row ?? {
+      course_id: "course-1",
+      user_id: "user-1",
+      progress_percent: 0,
+    });
+  });
 }

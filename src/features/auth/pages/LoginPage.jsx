@@ -3,7 +3,7 @@
  * redirect. Navigation logic intentionally lives here, not in LoginForm/useLogin.
  */
 import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../../../providers/ThemeProvider";
@@ -24,12 +24,18 @@ export function LoginPage() {
   const { user } = useAuth();
   const { prefersReducedMotion } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (user) {
-      navigate(DASHBOARDS[user.role] ?? "/dashboard", { replace: true });
+      // Honor a redirect-back target (e.g. enrollment CTA's "Enroll Now" for a
+      // guest) before falling back to the role-based dashboard.
+      const redirectTo = location.state?.redirectTo;
+      navigate(redirectTo ?? DASHBOARDS[user.role] ?? "/dashboard", {
+        replace: true,
+      });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.state]);
 
   return (
     <motion.div
