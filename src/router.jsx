@@ -16,6 +16,7 @@ import { CoursesListPage } from "./features/courses/pages/CoursesListPage";
 import { CourseDetailsPage } from "./features/courses/pages/CourseDetailsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MyLearningPage } from "./features/courses/pages/MyLearningPage";
+import { LearningPage } from "./features/learning/pages/LearningPage";
 
 const router = createBrowserRouter([
   {
@@ -34,6 +35,8 @@ const router = createBrowserRouter([
     children: [
       { path: "/dashboard", element: <DashboardPage /> },
       { path: "/my-learning", element: <MyLearningPage /> },
+      { path: "/learn/:courseId", element: <LearningPage /> },
+      { path: "/learn/:courseId/:lessonId", element: <LearningPage /> },
     ],
   },
   { path: "*", element: <NotFoundPage /> },
