@@ -53,3 +53,43 @@
  *      quality nicety — a client-side-graded quiz is trivially cheatable.
  *      This is the single most important architectural decision in this phase.
  */
+import { supabase } from "../../../services/apiClient";
+
+export async function getQuiz(quizId) {
+  // Deliberately NEVER selects quiz_options.is_correct — the answer key must
+  // not be readable from the network tab by someone taking the quiz.
+  return supabase
+    .from("quizzes")
+    .select(
+      `id, title, passing_score, module:course_modules(course_id, title),
+       questions:quiz_questions(id, question_text, order,
+         options:quiz_options(id, option_text, order))`
+    )
+    .eq("id", quizId)
+    .single();
+}
+
+export async function submitQuizAttempt(userId, quizId, answers) {
+  // Grading is server-side (the RPC looks up correct option ids, computes the
+  // score/pass, writes the attempt, and updates course progress atomically) —
+  // the client never sees the answer key, only the POST-submission result.
+  return supabase.rpc("submit_quiz_attempt", {
+    p_user_id: userId,
+    p_quiz_id: quizId,
+    p_answers: answers,
+  });
+}
+
+export async function getQuizAttemptHistory(userId, quizId) {
+  // Retries are unlimited, so the only history needed is the most recent
+  // attempt for "last score: X%" context on quiz entry. maybeSingle: no
+  // attempts at all -> data null, not an error.
+  return supabase
+    .from("quiz_attempts")
+    .select("id, score, passed, created_at")
+    .eq("user_id", userId)
+    .eq("quiz_id", quizId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}

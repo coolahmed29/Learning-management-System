@@ -18,3 +18,18 @@
  * test as a safeguard against accidentally leaking it if the query/mock ever
  * changes), error state on failure.
  */
+import { useQuery } from "@tanstack/react-query";
+import * as quizApi from "../api/quizApi";
+
+export function useQuiz(quizId) {
+  return useQuery({
+    queryKey: ["quiz", quizId],
+    queryFn: () =>
+      quizApi.getQuiz(quizId).then(({ data, error }) => {
+        if (error) throw new Error("Failed to load quiz");
+        return data;
+      }),
+    // Guarded by quizId — an undecided/initial route render must not fire.
+    enabled: !!quizId,
+  });
+}
